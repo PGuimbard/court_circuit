@@ -12,7 +12,7 @@ import multer from 'multer';
 
 // Import des configurations
 import { supabaseAdmin, checkConnection, createDefaultAdmin, createDefaultCampus } from './database.js';
-import { uploadImage, deleteImage } from './config/cloudinary.js';
+import { uploadImage, deleteImage } from './cloudinary.js';
 
 // Configuration ES modules
 const __filename = fileURLToPath(import.meta.url);
