@@ -17,7 +17,7 @@ import { uploadImage, deleteImage } from './config/cloudinary.js';
 // Configuration ES modules
 const __filename = fileURLToPath(import.meta.url);
 // const __dirname = path.dirname(__filename);
-const _dirnam = './views/'
+const _dirname = './views/'
 
 // Charger les variables d'environnement
 dotenv.config();
