@@ -16,7 +16,8 @@ import { uploadImage, deleteImage } from './config/cloudinary.js';
 
 // Configuration ES modules
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __dirname = path.dirname(__filename);
+const _dirnam = './views/'
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -84,27 +85,27 @@ function requireRole(...roles) {
 // ====================================
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'index.html'));
+  res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'login.html'));
+  res.sendFile(path.join(__dirname, 'login.html'));
 });
 
 app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'register.html'));
+  res.sendFile(path.join(__dirname, 'register.html'));
 });
 
 app.get('/admin', requireAuth, requireRole('admin'), (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'admin.html'));
+  res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
 app.get('/agriculteur', requireAuth, requireRole('agriculteur'), (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'agriculteur.html'));
+  res.sendFile(path.join(__dirname, 'agriculteur.html'));
 });
 
 app.get('/etudiant', requireAuth, requireRole('etudiant'), (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'etudiant.html'));
+  res.sendFile(path.join(__dirname, 'etudiant.html'));
 });
 
 // ====================================
