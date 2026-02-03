@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inscription - Court Circuit</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-content">
+      <a href="/" class="logo">
+        <span class="logo-icon">🌾</span>
+        Court Circuit
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/">Accueil</a></li>
+          <li><a href="/login">Se connecter</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- CONTENU PRINCIPAL -->
+  <div class="container container-narrow">
+    <section style="margin-top: 3rem;">
+      <div class="card" style="max-width: 600px; margin: 0 auto;">
+        <div class="card-header">
+          <h1 class="card-title" style="text-align: center; margin-bottom: 0;">
+            Créer un compte étudiant
+          </h1>
+          <p style="text-align: center; color: var(--text-secondary); margin-top: 0.5rem;">
+            Accédez aux produits locaux livrés sur votre campus
+          </p>
+        </div>
+
+        <!-- Messages d'erreur/succès -->
+        <div id="alert-container"></div>
+
+        <form id="register-form">
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label for="prenom">Prénom *</label>
+              <input 
+                type="text" 
+                id="prenom" 
+                name="prenom" 
+                required 
+                placeholder="Jean"
+                autocomplete="given-name"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="nom">Nom *</label>
+              <input 
+                type="text" 
+                id="nom" 
+                name="nom" 
+                required 
+                placeholder="Dupont"
+                autocomplete="family-name"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email universitaire *</label>
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              required 
+              placeholder="jean.dupont@universite.fr"
+              autocomplete="email"
+            >
+            <small style="color: var(--text-secondary);">
+              Utilisez votre email universitaire pour vérification
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label for="telephone">Téléphone</label>
+            <input 
+              type="tel" 
+              id="telephone" 
+              name="telephone" 
+              placeholder="06 12 34 56 78"
+              autocomplete="tel"
+            >
+            <small style="color: var(--text-secondary);">
+              Pour vous contacter en cas de problème de livraison
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label for="id_campus">Campus *</label>
+            <select id="id_campus" name="id_campus" required>
+              <option value="">Sélectionnez votre campus...</option>
+              <!-- Les options seront chargées dynamiquement -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="mot_de_passe">Mot de passe *</label>
+            <input 
+              type="password" 
+              id="mot_de_passe" 
+              name="mot_de_passe" 
+              required 
+              minlength="6"
+              placeholder="Minimum 6 caractères"
+              autocomplete="new-password"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="mot_de_passe_confirm">Confirmer le mot de passe *</label>
+            <input 
+              type="password" 
+              id="mot_de_passe_confirm" 
+              name="mot_de_passe_confirm" 
+              required 
+              minlength="6"
+              placeholder="Retapez votre mot de passe"
+              autocomplete="new-password"
+            >
+          </div>
+
+          <div class="form-group">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+              <input type="checkbox" id="cgu" required>
+              <span>
+                J'accepte les 
+                <a href="#" target="_blank">conditions générales d'utilisation</a>
+              </span>
+            </label>
+          </div>
+
+          <button type="submit" class="btn btn-block btn-large">
+            Créer mon compte
+          </button>
+        </form>
+
+        <div class="card-footer" style="text-align: center;">
+          <p>Vous avez déjà un compte ?</p>
+          <a href="/login" class="btn btn-outline btn-block">Se connecter</a>
+        </div>
+      </div>
+
+      <!-- Info agriculteurs -->
+      <div class="card" style="max-width: 600px; margin: 2rem auto; background-color: #fff3cd; border-left: 4px solid var(--warning);">
+        <h4>🚜 Vous êtes agriculteur ?</h4>
+        <p>
+          Les inscriptions agriculteurs sont gérées par notre équipe pour garantir la qualité.
+          Contactez-nous à <a href="mailto:contact@court-circuit.fr">contact@court-circuit.fr</a>
+          avec les informations suivantes :
+        </p>
+        <ul>
+          <li>Nom et description de votre ferme</li>
+          <li>Types de produits proposés</li>
+          <li>Localisation</li>
+          <li>Certifications (bio, etc.)</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-content">
+      <p>&copy; 2026 Court Circuit - Tous droits réservés</p>
+    </div>
+  </footer>
+
+  <!-- SCRIPT -->
+  <script>
+    // Charger la liste des campus
+    async function loadCampus() {
+      try {
+        const response = await fetch('/api/campus');
+        const campus = await response.json();
+
+        const select = document.getElementById('id_campus');
+        campus.forEach(c => {
+          const option = document.createElement('option');
+          option.value = c.id;
+          option.textContent = `${c.nom} - ${c.universite}`;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Erreur chargement campus:', error);
+        showAlert('Erreur lors du chargement des campus', 'danger');
+      }
+    }
+
+    // Charger au démarrage
+    loadCampus();
+
+    // Gestion du formulaire d'inscription
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Vérifier que les mots de passe correspondent
+      const motDePasse = document.getElementById('mot_de_passe').value;
+      const motDePasseConfirm = document.getElementById('mot_de_passe_confirm').value;
+
+      if (motDePasse !== motDePasseConfirm) {
+        showAlert('Les mots de passe ne correspondent pas', 'danger');
+        return;
+      }
+
+      // Préparer les données
+      const formData = {
+        email: document.getElementById('email').value,
+        mot_de_passe: motDePasse,
+        nom: document.getElementById('nom').value,
+        prenom: document.getElementById('prenom').value,
+        telephone: document.getElementById('telephone').value,
+        id_campus: document.getElementById('id_campus').value
+      };
+
+      // Afficher un loader
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = 'Création du compte...';
+      submitBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erreur lors de l\'inscription');
+        }
+
+        // Inscription réussie
+        showAlert('Compte créé avec succès ! Redirection vers la connexion...', 'success');
+        
+        // Redirection vers la page de connexion après 2 secondes
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        showAlert(error.message, 'danger');
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      }
+    });
+
+    // Fonction pour afficher les alertes
+    function showAlert(message, type = 'info') {
+      const alertContainer = document.getElementById('alert-container');
+      alertContainer.innerHTML = `
+        <div class="alert alert-${type}">
+          ${message}
+        </div>
+      `;
+
+      // Faire défiler vers le haut pour voir l'alerte
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Supprimer l'alerte après 5 secondes
+      setTimeout(() => {
+        alertContainer.innerHTML = '';
+      }, 5000);
+    }
+
+    // Vérifier si déjà connecté
+    fetch('/api/auth/check')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          // Déjà connecté, rediriger
+          window.location.href = `/${data.role}`;
+        }
+      })
+      .catch(() => {
+        // Pas connecté, c'est normal
+      });
+  </script>
+</body>
+</html>

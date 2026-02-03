@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion - Court Circuit</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-content">
+      <a href="/" class="logo">
+        <span class="logo-icon">🌾</span>
+        Court Circuit
+      </a>
+      <nav>
+        <ul>
+          <li><a href="/">Accueil</a></li>
+          <li><a href="/register">S'inscrire</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- CONTENU PRINCIPAL -->
+  <div class="container container-narrow">
+    <section style="margin-top: 3rem;">
+      <div class="card" style="max-width: 500px; margin: 0 auto;">
+        <div class="card-header">
+          <h1 class="card-title" style="text-align: center; margin-bottom: 0;">Connexion</h1>
+        </div>
+
+        <!-- Messages d'erreur/succès -->
+        <div id="alert-container"></div>
+
+        <form id="login-form">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              required 
+              placeholder="votre@email.fr"
+              autocomplete="email"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="mot_de_passe">Mot de passe</label>
+            <input 
+              type="password" 
+              id="mot_de_passe" 
+              name="mot_de_passe" 
+              required 
+              placeholder="••••••••"
+              autocomplete="current-password"
+            >
+          </div>
+
+          <button type="submit" class="btn btn-block btn-large">
+            Se connecter
+          </button>
+        </form>
+
+        <div class="card-footer" style="text-align: center;">
+          <p>Pas encore de compte ?</p>
+          <a href="/register" class="btn btn-outline btn-block">Créer un compte étudiant</a>
+          
+          <p style="margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+            Vous êtes agriculteur ? Contactez-nous pour créer votre compte :<br>
+            <a href="mailto:contact@court-circuit.fr">contact@court-circuit.fr</a>
+          </p>
+        </div>
+      </div>
+
+      <!-- Infos de test en mode dev -->
+      <div id="dev-info" class="card" style="max-width: 500px; margin: 2rem auto; display: none;">
+        <h4 style="color: var(--warning);">⚠️ Mode développement</h4>
+        <p><strong>Compte admin par défaut :</strong></p>
+        <ul>
+          <li>Email : <code>admin@court-circuit.fr</code></li>
+          <li>Mot de passe : <code>admin123</code></li>
+        </ul>
+        <p style="color: var(--danger); margin-top: 1rem;">
+          <strong>Important :</strong> Changez ce mot de passe en production !
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-content">
+      <p>&copy; 2026 Court Circuit - Tous droits réservés</p>
+    </div>
+  </footer>
+
+  <!-- SCRIPT -->
+  <script>
+    // Afficher les infos de dev si on est en mode développement
+    // (vous pouvez ajouter une variable d'environnement côté client si nécessaire)
+    
+    // Gestion du formulaire de connexion
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value;
+      const mot_de_passe = document.getElementById('mot_de_passe').value;
+
+      // Afficher un loader
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      submitBtn.textContent = 'Connexion en cours...';
+      submitBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email, mot_de_passe })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erreur de connexion');
+        }
+
+        // Connexion réussie
+        showAlert('Connexion réussie ! Redirection...', 'success');
+        
+        // Redirection vers la page appropriée
+        setTimeout(() => {
+          window.location.href = data.redirectUrl || `/${data.role}`;
+        }, 1000);
+
+      } catch (error) {
+        console.error('Erreur:', error);
+        showAlert(error.message, 'danger');
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+      }
+    });
+
+    // Fonction pour afficher les alertes
+    function showAlert(message, type = 'info') {
+      const alertContainer = document.getElementById('alert-container');
+      alertContainer.innerHTML = `
+        <div class="alert alert-${type}">
+          ${message}
+        </div>
+      `;
+
+      // Supprimer l'alerte après 5 secondes
+      setTimeout(() => {
+        alertContainer.innerHTML = '';
+      }, 5000);
+    }
+
+    // Vérifier si déjà connecté
+    fetch('/api/auth/check')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated) {
+          // Déjà connecté, rediriger
+          window.location.href = `/${data.role}`;
+        }
+      })
+      .catch(() => {
+        // Pas connecté, c'est normal
+      });
+  </script>
+</body>
+</html>
