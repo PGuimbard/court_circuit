@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 
 // Import des configurations
-import { supabaseAdmin, checkConnection, createDefaultAdmin, createDefaultCampus } from './config/database.js';
+import { supabaseAdmin, checkConnection, createDefaultAdmin, createDefaultCampus } from './database.js';
 import { uploadImage, deleteImage } from './config/cloudinary.js';
 
 // Configuration ES modules
