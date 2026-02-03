@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Admin - Court Circuit</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-content">
+      <a href="/" class="logo">
+        <span class="logo-icon">🌾</span>
+        Court Circuit
+      </a>
+      <nav>
+        <ul>
+          <li><span id="user-name">Admin</span></li>
+          <li><a href="#" id="logout-btn" class="btn btn-small btn-danger">Déconnexion</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- CONTENU PRINCIPAL -->
+  <div class="container container-wide">
+    <h1>Dashboard Administrateur</h1>
+    
+    <!-- Messages -->
+    <div id="alert-container"></div>
+
+    <!-- STATISTIQUES -->
+    <section>
+      <h2>📊 Statistiques générales</h2>
+      <div class="grid grid-4" id="stats-container">
+        <div class="card">
+          <h3>👥 Utilisateurs</h3>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="stat-users">-</p>
+          <p style="color: var(--text-secondary);">
+            <span id="stat-etudiants">-</span> étudiants • 
+            <span id="stat-agriculteurs">-</span> agriculteurs
+          </p>
+        </div>
+        
+        <div class="card">
+          <h3>🌽 Produits</h3>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="stat-produits">-</p>
+          <p style="color: var(--text-secondary);">Disponibles à la vente</p>
+        </div>
+        
+        <div class="card">
+          <h3>🚚 Livraisons</h3>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="stat-livraisons">-</p>
+          <p style="color: var(--text-secondary);">
+            <span id="stat-confirmees">-</span> confirmées • 
+            <span id="stat-livrees">-</span> livrées
+          </p>
+        </div>
+        
+        <div class="card">
+          <h3>💰 Chiffre d'affaires</h3>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="stat-ca">-</p>
+          <p style="color: var(--text-secondary);"><span id="stat-commandes">-</span> commandes payées</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ONGLETS -->
+    <section style="margin-top: 3rem;">
+      <div style="display: flex; gap: 1rem; border-bottom: 2px solid var(--border); margin-bottom: 2rem;">
+        <button class="tab-btn active" data-tab="livraisons">🚚 Livraisons</button>
+        <button class="tab-btn" data-tab="utilisateurs">👥 Utilisateurs</button>
+        <button class="tab-btn" data-tab="commandes">📦 Commandes</button>
+      </div>
+
+      <!-- ONGLET LIVRAISONS -->
+      <div class="tab-content active" id="tab-livraisons">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h2>Gestion des livraisons</h2>
+          <div style="display: flex; gap: 1rem;">
+            <select id="filter-statut" style="width: 200px;">
+              <option value="">Tous les statuts</option>
+              <option value="en_attente">En attente</option>
+              <option value="creneau_valide">Créneau validé</option>
+              <option value="seuil_atteint">Seuil atteint</option>
+              <option value="confirmee">Confirmée</option>
+              <option value="livree">Livrée</option>
+              <option value="annulee">Annulée</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table id="livraisons-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Agriculteur</th>
+                <th>Campus</th>
+                <th>Seuil / Total</th>
+                <th>Créneaux proposés</th>
+                <th>Statut</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="livraisons-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 2rem;">
+                  <div class="loader"></div>
+                  <p>Chargement des livraisons...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ONGLET UTILISATEURS -->
+      <div class="tab-content" id="tab-utilisateurs">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h2>Gestion des utilisateurs</h2>
+          <button class="btn" id="btn-add-agriculteur">+ Ajouter un agriculteur</button>
+        </div>
+
+        <div class="table-responsive">
+          <table id="users-table">
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Rôle</th>
+                <th>Campus/Ferme</th>
+                <th>Inscription</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 2rem;">
+                  <div class="loader"></div>
+                  <p>Chargement des utilisateurs...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ONGLET COMMANDES -->
+      <div class="tab-content" id="tab-commandes">
+        <h2>Toutes les commandes</h2>
+        
+        <div class="table-responsive">
+          <table id="commandes-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Étudiant</th>
+                <th>Livraison</th>
+                <th>Montant</th>
+                <th>Paiement</th>
+                <th>Détails</th>
+              </tr>
+            </thead>
+            <tbody id="commandes-tbody">
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 2rem;">
+                  <div class="loader"></div>
+                  <p>Chargement des commandes...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODAL VALIDATION CRÉNEAU -->
+  <div class="modal" id="modal-creneau">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Valider un créneau de livraison</h3>
+        <button class="modal-close" onclick="closeModal('modal-creneau')">&times;</button>
+      </div>
+      <div id="modal-creneau-body"></div>
+    </div>
+  </div>
+
+  <!-- MODAL AJOUTER AGRICULTEUR -->
+  <div class="modal" id="modal-agriculteur">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Ajouter un agriculteur</h3>
+        <button class="modal-close" onclick="closeModal('modal-agriculteur')">&times;</button>
+      </div>
+      <form id="form-agriculteur">
+        <div class="form-group">
+          <label for="agriculteur-prenom">Prénom *</label>
+          <input type="text" id="agriculteur-prenom" required>
+        </div>
+        <div class="form-group">
+          <label for="agriculteur-nom">Nom *</label>
+          <input type="text" id="agriculteur-nom" required>
+        </div>
+        <div class="form-group">
+          <label for="agriculteur-email">Email *</label>
+          <input type="email" id="agriculteur-email" required>
+        </div>
+        <div class="form-group">
+          <label for="agriculteur-telephone">Téléphone</label>
+          <input type="tel" id="agriculteur-telephone">
+        </div>
+        <div class="form-group">
+          <label for="agriculteur-nom-ferme">Nom de la ferme *</label>
+          <input type="text" id="agriculteur-nom-ferme" required>
+        </div>
+        <div class="form-group">
+          <label for="agriculteur-adresse">Adresse de la ferme</label>
+          <textarea id="agriculteur-adresse" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="agriculteur-description">Description</label>
+          <textarea id="agriculteur-description" rows="4"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="agriculteur-password">Mot de passe temporaire *</label>
+          <input type="password" id="agriculteur-password" required minlength="6">
+          <small>L'agriculteur devra le changer à la première connexion</small>
+        </div>
+        <button type="submit" class="btn btn-block">Créer le compte</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>

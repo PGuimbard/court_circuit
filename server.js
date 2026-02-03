@@ -16,8 +16,9 @@ import { uploadImage, deleteImage } from './config/cloudinary.js';
 
 // Configuration ES modules
 const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-const _dirname = './views/'
+const __dirname = path.dirname(__filename);
+
+
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -30,9 +31,14 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+//app.use(express.json());
+//app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.use(express.json()); // ✅ for JSON bodies (fetch, API)
+app.use(express.urlencoded({ extended: true })); // ✅ for HTML forms
+
 
 // Configuration des sessions
 app.use(session({
@@ -85,27 +91,27 @@ function requireRole(...roles) {
 // ====================================
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  res.sendFile(path.join(__dirname,'views',  'index.html'));
 });
 
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'login.html'));
+  res.sendFile(path.join(__dirname,'views', 'login.html'));
 });
 
 app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'register.html'));
+  res.sendFile(path.join(__dirname,'views', 'register.html'));
 });
 
 app.get('/admin', requireAuth, requireRole('admin'), (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
+  res.sendFile(path.join(__dirname,'views', 'admin.html'));
 });
 
 app.get('/agriculteur', requireAuth, requireRole('agriculteur'), (req, res) => {
-  res.sendFile(path.join(__dirname, 'agriculteur.html'));
+  res.sendFile(path.join(__dirname,'views', 'agriculteur.html'));
 });
 
 app.get('/etudiant', requireAuth, requireRole('etudiant'), (req, res) => {
-  res.sendFile(path.join(__dirname, 'etudiant.html'));
+  res.sendFile(path.join(__dirname,'views', 'etudiant.html'));
 });
 
 // ====================================
@@ -931,6 +937,92 @@ app.get('/api/stats/agriculteur', requireAuth, requireRole('agriculteur'), async
   } catch (error) {
     console.error('Erreur stats agriculteur:', error);
     res.status(500).json({ error: 'Erreur lors de la récupération des statistiques' });
+  }
+});
+
+// Dans server.js, après les routes existantes
+
+// Liste des utilisateurs (admin uniquement)
+app.get('/api/utilisateurs', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('utilisateurs')
+      .select(`
+        *,
+        campus(nom, ville)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error('Erreur récupération utilisateurs:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs' });
+  }
+});
+
+// Supprimer un utilisateur (admin uniquement)
+app.delete('/api/utilisateurs/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error } = await supabaseAdmin
+      .from('utilisateurs')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    res.json({ message: 'Utilisateur supprimé' });
+  } catch (error) {
+    console.error('Erreur suppression utilisateur:', error);
+    res.status(500).json({ error: 'Erreur lors de la suppression' });
+  }
+});
+
+// Créer un agriculteur (admin uniquement)
+app.post('/api/agriculteurs', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { email, mot_de_passe, nom, prenom, telephone, nom_ferme, adresse_ferme, description_ferme } = req.body;
+
+    // Vérifier si l'email existe déjà
+    const { data: existingUser } = await supabaseAdmin
+      .from('utilisateurs')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Cet email est déjà utilisé' });
+    }
+
+    // Hasher le mot de passe
+    const hashedPassword = await bcrypt.hash(mot_de_passe, 10);
+
+    // Créer l'utilisateur
+    const { data, error } = await supabaseAdmin
+      .from('utilisateurs')
+      .insert({
+        email,
+        mot_de_passe: hashedPassword,
+        nom,
+        prenom,
+        telephone,
+        role: 'agriculteur',
+        nom_ferme,
+        adresse_ferme,
+        description_ferme
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ message: 'Agriculteur créé avec succès', userId: data.id });
+  } catch (error) {
+    console.error('Erreur création agriculteur:', error);
+    res.status(500).json({ error: 'Erreur lors de la création de l\'agriculteur' });
   }
 });
 

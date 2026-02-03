@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Agriculteur - Court Circuit</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-content">
+      <a href="/" class="logo">
+        <span class="logo-icon">🌾</span>
+        Court Circuit
+      </a>
+      <nav>
+        <ul>
+          <li><span id="user-name">Agriculteur</span></li>
+          <li><a href="#" id="logout-btn" class="btn btn-small btn-danger">Déconnexion</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- CONTENU PRINCIPAL -->
+  <div class="container container-wide">
+    <h1>🚜 Mon exploitation</h1>
+    
+    <!-- Messages -->
+    <div id="alert-container"></div>
+
+    <!-- STATISTIQUES -->
+    <section>
+      <h2>📊 Mes statistiques</h2>
+      <div class="grid grid-4" id="stats-container">
+        <div class="card">
+          <h3>🌽 Produits</h3>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="stat-produits">-</p>
+          <p style="color: var(--text-secondary);">Disponibles</p>
+        </div>
+        
+        <div class="card">
+          <h3>🚚 Livraisons</h3>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="stat-livraisons">-</p>
+          <p style="color: var(--text-secondary);"><span id="stat-en-cours">-</span> en cours</p>
+        </div>
+        
+        <div class="card">
+          <h3>📦 Commandes</h3>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="stat-commandes">-</p>
+          <p style="color: var(--text-secondary);">Total</p>
+        </div>
+        
+        <div class="card">
+          <h3>💰 Chiffre d'affaires</h3>
+          <p style="font-size: 2rem; font-weight: bold; color: var(--primary-color);" id="stat-ca">-</p>
+          <p style="color: var(--text-secondary);">Total encaissé</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ONGLETS -->
+    <section style="margin-top: 3rem;">
+      <div style="display: flex; gap: 1rem; border-bottom: 2px solid var(--border); margin-bottom: 2rem;">
+        <button class="tab-btn active" data-tab="produits">🌽 Mes produits</button>
+        <button class="tab-btn" data-tab="livraisons">🚚 Mes livraisons</button>
+        <button class="tab-btn" data-tab="commandes">📦 Commandes reçues</button>
+      </div>
+
+      <!-- ONGLET PRODUITS -->
+      <div class="tab-content active" id="tab-produits">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h2>Catalogue de produits</h2>
+          <button class="btn" id="btn-add-produit">+ Ajouter un produit</button>
+        </div>
+
+        <div class="grid grid-3" id="produits-grid">
+          <div class="card" style="text-align: center; padding: 3rem;">
+            <div class="loader"></div>
+            <p>Chargement des produits...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ONGLET LIVRAISONS -->
+      <div class="tab-content" id="tab-livraisons">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <h2>Mes livraisons programmées</h2>
+          <button class="btn" id="btn-add-livraison">+ Créer une livraison</button>
+        </div>
+
+        <div id="livraisons-container">
+          <div style="text-align: center; padding: 3rem;">
+            <div class="loader"></div>
+            <p>Chargement des livraisons...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ONGLET COMMANDES -->
+      <div class="tab-content" id="tab-commandes">
+        <h2>Commandes reçues</h2>
+        
+        <div class="table-responsive">
+          <table id="commandes-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Étudiant</th>
+                <th>Campus</th>
+                <th>Montant</th>
+                <th>Statut</th>
+                <th>Détails</th>
+              </tr>
+            </thead>
+            <tbody id="commandes-tbody">
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 2rem;">
+                  <div class="loader"></div>
+                  <p>Chargement...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODAL AJOUTER PRODUIT -->
+  <div class="modal" id="modal-produit">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-produit-title">Ajouter un produit</h3>
+        <button class="modal-close" onclick="closeModal('modal-produit')">&times;</button>
+      </div>
+      <form id="form-produit" enctype="multipart/form-data">
+        <input type="hidden" id="produit-id">
+        
+        <div class="form-group">
+          <label for="produit-nom">Nom du produit *</label>
+          <input type="text" id="produit-nom" required placeholder="Ex: Tomates bio">
+        </div>
+        
+        <div class="grid grid-2">
+          <div class="form-group">
+            <label for="produit-prix">Prix *</label>
+            <input type="number" id="produit-prix" step="0.01" min="0" required placeholder="5.50">
+          </div>
+          
+          <div class="form-group">
+            <label for="produit-unite">Unité *</label>
+            <select id="produit-unite" required>
+              <option value="">Choisir...</option>
+              <option value="kg">kg</option>
+              <option value="piece">pièce</option>
+              <option value="botte">botte</option>
+              <option value="litre">litre</option>
+              <option value="barquette">barquette</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label for="produit-categorie">Catégorie</label>
+          <select id="produit-categorie">
+            <option value="">Choisir...</option>
+            <option value="Légumes">Légumes</option>
+            <option value="Fruits">Fruits</option>
+            <option value="Produits laitiers">Produits laitiers</option>
+            <option value="Viande">Viande</option>
+            <option value="Oeufs">Œufs</option>
+            <option value="Pain">Pain</option>
+            <option value="Miel">Miel</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="produit-description">Description</label>
+          <textarea id="produit-description" rows="3" placeholder="Décrivez votre produit..."></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="produit-photo">Photo du produit</label>
+          <input type="file" id="produit-photo" accept="image/*">
+          <small>Max 5MB - JPG, PNG, WebP</small>
+        </div>
+        
+        <div id="photo-preview" style="margin-top: 1rem; display: none;">
+          <img id="photo-preview-img" style="max-width: 100%; border-radius: 8px;">
+        </div>
+        
+        <button type="submit" class="btn btn-block" id="btn-submit-produit">Ajouter le produit</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL CRÉER LIVRAISON -->
+  <div class="modal" id="modal-livraison">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Créer une livraison</h3>
+        <button class="modal-close" onclick="closeModal('modal-livraison')">&times;</button>
+      </div>
+      <form id="form-livraison">
+        <div class="form-group">
+          <label for="livraison-campus">Campus de livraison *</label>
+          <select id="livraison-campus" required>
+            <option value="">Choisir un campus...</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="livraison-seuil">Seuil minimum (€) *</label>
+          <input type="number" id="livraison-seuil" step="0.01" min="0" required placeholder="200.00">
+          <small>La livraison sera confirmée uniquement si ce montant est atteint</small>
+        </div>
+        
+        <h4 style="margin: 1.5rem 0 1rem 0;">Proposer 3 créneaux de livraison</h4>
+        <small style="color: var(--text-secondary);">L'admin choisira parmi ces 3 créneaux</small>
+        
+        <div class="form-group">
+          <label for="livraison-creneau1">Créneau 1 *</label>
+          <input type="datetime-local" id="livraison-creneau1" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="livraison-creneau2">Créneau 2 *</label>
+          <input type="datetime-local" id="livraison-creneau2" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="livraison-creneau3">Créneau 3 *</label>
+          <input type="datetime-local" id="livraison-creneau3" required>
+        </div>
+        
+        <button type="submit" class="btn btn-block">Créer la livraison</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/agriculteur.js"></script>
+</body>
+</html>
