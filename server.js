@@ -91,27 +91,33 @@ function requireRole(...roles) {
 // ====================================
 
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname,'views',  'index.html'));
+  res.sendFile(new URL('./views/index.html', import.meta.url));
+  //res.sendFile(path.join(__dirname,'views',  'index.html'));
 });
 
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname,'views', 'login.html'));
+  res.sendFile(new URL('./views/login.html', import.meta.url));
+  //res.sendFile(path.join(__dirname,'views', 'login.html'));
 });
 
 app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname,'views', 'register.html'));
+  res.sendFile(new URL('./views/register.html', import.meta.url));
+  //res.sendFile(path.join(__dirname,'views', 'register.html'));
 });
 
 app.get('/admin', requireAuth, requireRole('admin'), (req, res) => {
-  res.sendFile(path.join(__dirname,'views', 'admin.html'));
+  //res.sendFile(path.join(__dirname,'views', 'admin.html'));
+  res.sendFile(new URL('./views/admin.html', import.meta.url));
 });
 
 app.get('/agriculteur', requireAuth, requireRole('agriculteur'), (req, res) => {
-  res.sendFile(path.join(__dirname,'views', 'agriculteur.html'));
+  //res.sendFile(path.join(__dirname,'views', 'agriculteur.html'));
+  res.sendFile(new URL('./views/agriculteur.html', import.meta.url));
 });
 
 app.get('/etudiant', requireAuth, requireRole('etudiant'), (req, res) => {
-  res.sendFile(path.join(__dirname,'views', 'etudiant.html'));
+  //res.sendFile(path.join(__dirname,'views', 'etudiant.html'));
+  res.sendFile(new URL('./views/etudiant.html', import.meta.url));
 });
 
 // ====================================
