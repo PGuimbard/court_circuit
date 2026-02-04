@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
+import { promises as fs } from 'fs';
 
 // Import des configurations
 import { supabaseAdmin, checkConnection, createDefaultAdmin, createDefaultCampus } from './config/database.js';
@@ -87,37 +88,59 @@ function requireRole(...roles) {
 }
 
 // ====================================
+// HELPER FUNCTION POUR SERVIR LES FICHIERS HTML
+// ====================================
+
+async function serveHTMLFile(res, filename) {
+  try {
+    const filePath = path.join(__dirname, 'views', filename);
+    
+    // Vérifier que le fichier existe
+    await fs.access(filePath);
+    
+    // Envoyer le fichier
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error(`Erreur lors du chargement de ${filename}:`, error);
+    res.status(404).send(`
+      <html>
+        <body>
+          <h1>Erreur 404</h1>
+          <p>Le fichier ${filename} est introuvable.</p>
+          <p>Chemin recherché: ${path.join(__dirname, 'views', filename)}</p>
+          <p><a href="/">Retour à l'accueil</a></p>
+        </body>
+      </html>
+    `);
+  }
+}
+
+// ====================================
 // ROUTES PAGES HTML
 // ====================================
 
 app.get('/', (req, res) => {
-  res.sendFile(new URL('./views/index.html', import.meta.url));
-  //res.sendFile(path.join(__dirname,'views',  'index.html'));
+  serveHTMLFile(res, 'index.html');
 });
 
 app.get('/login', (req, res) => {
-  res.sendFile(new URL('./views/login.html', import.meta.url));
-  //res.sendFile(path.join(__dirname,'views', 'login.html'));
+  serveHTMLFile(res, 'login.html');
 });
 
 app.get('/register', (req, res) => {
-  res.sendFile(new URL('./views/register.html', import.meta.url));
-  //res.sendFile(path.join(__dirname,'views', 'register.html'));
+  serveHTMLFile(res, 'register.html');
 });
 
 app.get('/admin', requireAuth, requireRole('admin'), (req, res) => {
-  //res.sendFile(path.join(__dirname,'views', 'admin.html'));
-  res.sendFile(new URL('./views/admin.html', import.meta.url));
+  serveHTMLFile(res, 'admin.html');
 });
 
 app.get('/agriculteur', requireAuth, requireRole('agriculteur'), (req, res) => {
-  //res.sendFile(path.join(__dirname,'views', 'agriculteur.html'));
-  res.sendFile(new URL('./views/agriculteur.html', import.meta.url));
+  serveHTMLFile(res, 'agriculteur.html');
 });
 
 app.get('/etudiant', requireAuth, requireRole('etudiant'), (req, res) => {
-  //res.sendFile(path.join(__dirname,'views', 'etudiant.html'));
-  res.sendFile(new URL('./views/etudiant.html', import.meta.url));
+  serveHTMLFile(res, 'etudiant.html');
 });
 
 // ====================================
@@ -288,10 +311,10 @@ app.get('/api/produits', async (req, res) => {
   }
 });
 
-// Créer un produit (agriculteur uniquement)
+// Ajouter un produit
 app.post('/api/produits', requireAuth, requireRole('agriculteur'), upload.single('photo'), async (req, res) => {
   try {
-    const { nom, description, prix, unite, categorie } = req.body;
+    const { nom, description, prix, unite, quantite_disponible, categorie } = req.body;
     const id_agriculteur = req.session.userId;
 
     // Validation
@@ -300,13 +323,11 @@ app.post('/api/produits', requireAuth, requireRole('agriculteur'), upload.single
     }
 
     let photo_url = null;
-    let photo_public_id = null;
 
-    // Upload de la photo sur Cloudinary
+    // Upload vers Cloudinary si une photo est fournie
     if (req.file) {
-      const result = await uploadImage(req.file.buffer, 'produits');
-      photo_url = result.url;
-      photo_public_id = result.public_id;
+      const cloudinaryResult = await uploadImage(req.file.buffer, 'produits');
+      photo_url = cloudinaryResult.secure_url;
     }
 
     // Créer le produit
@@ -316,11 +337,11 @@ app.post('/api/produits', requireAuth, requireRole('agriculteur'), upload.single
         id_agriculteur,
         nom,
         description,
-        prix: parseFloat(prix),
+        prix,
         unite,
+        quantite_disponible,
         categorie,
         photo_url,
-        photo_public_id,
         disponible: true
       })
       .select()
@@ -328,68 +349,67 @@ app.post('/api/produits', requireAuth, requireRole('agriculteur'), upload.single
 
     if (error) throw error;
 
-    res.json({ message: 'Produit créé avec succès', produit: data });
+    res.json({ message: 'Produit ajouté', produit: data });
   } catch (error) {
-    console.error('Erreur création produit:', error);
-    res.status(500).json({ error: 'Erreur lors de la création du produit' });
+    console.error('Erreur ajout produit:', error);
+    res.status(500).json({ error: 'Erreur lors de l\'ajout du produit' });
   }
 });
 
-// Mettre à jour un produit
+// Modifier un produit
 app.put('/api/produits/:id', requireAuth, requireRole('agriculteur'), upload.single('photo'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { nom, description, prix, unite, categorie, disponible } = req.body;
+    const { nom, description, prix, unite, quantite_disponible, categorie, disponible } = req.body;
     const id_agriculteur = req.session.userId;
 
     // Vérifier que le produit appartient à l'agriculteur
-    const { data: produit } = await supabaseAdmin
+    const { data: produit, error: checkError } = await supabaseAdmin
       .from('produits')
       .select('*')
       .eq('id', id)
       .eq('id_agriculteur', id_agriculteur)
       .single();
 
-    if (!produit) {
+    if (checkError || !produit) {
       return res.status(404).json({ error: 'Produit non trouvé' });
     }
 
-    const updateData = {
+    const updates = {
       nom: nom || produit.nom,
       description: description || produit.description,
-      prix: prix ? parseFloat(prix) : produit.prix,
+      prix: prix || produit.prix,
       unite: unite || produit.unite,
+      quantite_disponible: quantite_disponible !== undefined ? quantite_disponible : produit.quantite_disponible,
       categorie: categorie || produit.categorie,
       disponible: disponible !== undefined ? disponible : produit.disponible
     };
 
-    // Nouvelle photo ?
+    // Gérer la nouvelle photo si fournie
     if (req.file) {
-      // Supprimer l'ancienne photo
-      if (produit.photo_public_id) {
-        await deleteImage(produit.photo_public_id);
+      // Supprimer l'ancienne photo de Cloudinary si elle existe
+      if (produit.photo_url) {
+        await deleteImage(produit.photo_url);
       }
-      
+
       // Upload la nouvelle
-      const result = await uploadImage(req.file.buffer, 'produits');
-      updateData.photo_url = result.url;
-      updateData.photo_public_id = result.public_id;
+      const cloudinaryResult = await uploadImage(req.file.buffer, 'produits');
+      updates.photo_url = cloudinaryResult.secure_url;
     }
 
-    // Mettre à jour
     const { data, error } = await supabaseAdmin
       .from('produits')
-      .update(updateData)
+      .update(updates)
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
 
-    res.json({ message: 'Produit mis à jour', produit: data });
+    res.json({ message: 'Produit modifié', produit: data });
   } catch (error) {
-    console.error('Erreur mise à jour produit:', error);
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du produit' });
+    console.error('Erreur modification produit:', error);
+    res.status(500).json({ error: 'Erreur lors de la modification du produit' });
   }
 });
 
@@ -399,32 +419,28 @@ app.delete('/api/produits/:id', requireAuth, requireRole('agriculteur'), async (
     const { id } = req.params;
     const id_agriculteur = req.session.userId;
 
-    // Récupérer le produit
+    // Récupérer le produit pour avoir l'URL de la photo
     const { data: produit } = await supabaseAdmin
       .from('produits')
-      .select('*')
+      .select('photo_url')
       .eq('id', id)
       .eq('id_agriculteur', id_agriculteur)
       .single();
 
-    if (!produit) {
-      return res.status(404).json({ error: 'Produit non trouvé' });
+    // Supprimer la photo de Cloudinary si elle existe
+    if (produit?.photo_url) {
+      await deleteImage(produit.photo_url);
     }
 
-    // Supprimer la photo de Cloudinary
-    if (produit.photo_public_id) {
-      await deleteImage(produit.photo_public_id);
-    }
-
-    // Supprimer le produit
     const { error } = await supabaseAdmin
       .from('produits')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('id_agriculteur', id_agriculteur);
 
     if (error) throw error;
 
-    res.json({ message: 'Produit supprimé avec succès' });
+    res.json({ message: 'Produit supprimé' });
   } catch (error) {
     console.error('Erreur suppression produit:', error);
     res.status(500).json({ error: 'Erreur lors de la suppression du produit' });
@@ -435,24 +451,41 @@ app.delete('/api/produits/:id', requireAuth, requireRole('agriculteur'), async (
 // ROUTES API - LIVRAISONS
 // ====================================
 
-// Liste des livraisons (filtrable par statut, campus, agriculteur)
+// Liste des livraisons
 app.get('/api/livraisons', requireAuth, async (req, res) => {
   try {
-    const { statut, id_campus, id_agriculteur } = req.query;
+    const { role, userId } = req.session;
+    const { statut } = req.query;
 
     let query = supabaseAdmin
       .from('livraisons')
       .select(`
         *,
-        agriculteur:utilisateurs!id_agriculteur(nom, prenom, nom_ferme),
-        campus(nom, ville)
+        agriculteur:utilisateurs!livraisons_id_agriculteur_fkey(nom, prenom, nom_ferme),
+        campus(nom, ville),
+        commandes(id, montant_total)
       `)
       .order('created_at', { ascending: false });
 
-    // Filtres
-    if (statut) query = query.eq('statut', statut);
-    if (id_campus) query = query.eq('id_campus', id_campus);
-    if (id_agriculteur) query = query.eq('id_agriculteur', id_agriculteur);
+    // Filtrer selon le rôle
+    if (role === 'agriculteur') {
+      query = query.eq('id_agriculteur', userId);
+    } else if (role === 'etudiant') {
+      // Pour l'étudiant, on peut montrer les livraisons de son campus
+      const { data: user } = await supabaseAdmin
+        .from('utilisateurs')
+        .select('id_campus')
+        .eq('id', userId)
+        .single();
+
+      if (user?.id_campus) {
+        query = query.eq('id_campus', user.id_campus);
+      }
+    }
+
+    if (statut) {
+      query = query.eq('statut', statut);
+    }
 
     const { data, error } = await query;
 
@@ -465,71 +498,23 @@ app.get('/api/livraisons', requireAuth, async (req, res) => {
   }
 });
 
-// Détails d'une livraison avec ses commandes
-app.get('/api/livraisons/:id', requireAuth, async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    // Récupérer la livraison
-    const { data: livraison, error: livraisonError } = await supabaseAdmin
-      .from('livraisons')
-      .select(`
-        *,
-        agriculteur:utilisateurs!id_agriculteur(nom, prenom, nom_ferme, telephone),
-        campus(nom, ville, adresse)
-      `)
-      .eq('id', id)
-      .single();
-
-    if (livraisonError) throw livraisonError;
-
-    // Récupérer les commandes associées
-    const { data: commandes, error: commandesError } = await supabaseAdmin
-      .from('commandes')
-      .select(`
-        *,
-        etudiant:utilisateurs!id_etudiant(nom, prenom, email, telephone),
-        lignes_commande(
-          *,
-          produit:produits(nom, prix, unite)
-        )
-      `)
-      .eq('id_livraison', id);
-
-    if (commandesError) throw commandesError;
-
-    res.json({
-      ...livraison,
-      commandes
-    });
-  } catch (error) {
-    console.error('Erreur détails livraison:', error);
-    res.status(500).json({ error: 'Erreur lors de la récupération des détails' });
-  }
-});
-
-// Créer une livraison (agriculteur uniquement)
+// Créer une livraison
 app.post('/api/livraisons', requireAuth, requireRole('agriculteur'), async (req, res) => {
   try {
-    const { id_campus, seuil_prix, creneau_1, creneau_2, creneau_3 } = req.body;
+    const { 
+      id_campus, 
+      seuil_prix, 
+      creneau_propose_1, 
+      creneau_propose_2, 
+      creneau_propose_3 
+    } = req.body;
+    
     const id_agriculteur = req.session.userId;
 
     // Validation
-    if (!id_campus || !seuil_prix || !creneau_1 || !creneau_2 || !creneau_3) {
+    if (!id_campus || !seuil_prix || !creneau_propose_1 || !creneau_propose_2 || !creneau_propose_3) {
       return res.status(400).json({ error: 'Tous les champs sont requis' });
     }
-
-    // Vérifier que les 3 créneaux sont différents
-    const creneaux = [new Date(creneau_1), new Date(creneau_2), new Date(creneau_3)];
-    const uniqueCreneaux = new Set(creneaux.map(d => d.getTime()));
-    if (uniqueCreneaux.size !== 3) {
-      return res.status(400).json({ error: 'Les 3 créneaux doivent être différents' });
-    }
-
-    // Calculer la date limite de commande (10 jours avant le premier créneau)
-    const premierCreneau = new Date(Math.min(...creneaux.map(d => d.getTime())));
-    const dateLimite = new Date(premierCreneau);
-    dateLimite.setDate(dateLimite.getDate() - 10);
 
     // Créer la livraison
     const { data, error } = await supabaseAdmin
@@ -537,20 +522,19 @@ app.post('/api/livraisons', requireAuth, requireRole('agriculteur'), async (req,
       .insert({
         id_agriculteur,
         id_campus,
-        seuil_prix: parseFloat(seuil_prix),
-        creneau_1,
-        creneau_2,
-        creneau_3,
-        date_limite_commande: dateLimite.toISOString(),
+        seuil_prix,
+        creneau_propose_1,
+        creneau_propose_2,
+        creneau_propose_3,
         statut: 'en_attente',
-        total_actuel: 0
+        montant_actuel: 0
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    res.json({ message: 'Livraison créée avec succès', livraison: data });
+    res.json({ message: 'Livraison créée', livraison: data });
   } catch (error) {
     console.error('Erreur création livraison:', error);
     res.status(500).json({ error: 'Erreur lors de la création de la livraison' });
@@ -558,36 +542,30 @@ app.post('/api/livraisons', requireAuth, requireRole('agriculteur'), async (req,
 });
 
 // Valider un créneau (admin uniquement)
-app.put('/api/livraisons/:id/valider-creneau', requireAuth, requireRole('admin'), async (req, res) => {
+app.post('/api/livraisons/:id/valider-creneau', requireAuth, requireRole('admin'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { creneau_numero } = req.body; // 1, 2 ou 3
+    const { creneau_choisi } = req.body;
 
-    if (![1, 2, 3].includes(creneau_numero)) {
-      return res.status(400).json({ error: 'Le créneau doit être 1, 2 ou 3' });
+    if (!['creneau_propose_1', 'creneau_propose_2', 'creneau_propose_3'].includes(creneau_choisi)) {
+      return res.status(400).json({ error: 'Créneau invalide' });
     }
 
     // Récupérer la livraison
-    const { data: livraison } = await supabaseAdmin
+    const { data: livraison, error: fetchError } = await supabaseAdmin
       .from('livraisons')
-      .select('*')
+      .select(creneau_choisi)
       .eq('id', id)
       .single();
 
-    if (!livraison) {
+    if (fetchError || !livraison) {
       return res.status(404).json({ error: 'Livraison non trouvée' });
     }
 
-    // Récupérer la date du créneau sélectionné
-    const creneauKey = `creneau_${creneau_numero}`;
-    const dateValidee = livraison[creneauKey];
-
-    // Mettre à jour
     const { data, error } = await supabaseAdmin
       .from('livraisons')
       .update({
-        creneau_valide: creneau_numero,
-        date_livraison: dateValidee,
+        date_livraison: livraison[creneau_choisi],
         statut: 'creneau_valide'
       })
       .eq('id', id)
@@ -596,73 +574,34 @@ app.put('/api/livraisons/:id/valider-creneau', requireAuth, requireRole('admin')
 
     if (error) throw error;
 
-    res.json({ message: 'Créneau validé avec succès', livraison: data });
+    res.json({ message: 'Créneau validé', livraison: data });
   } catch (error) {
     console.error('Erreur validation créneau:', error);
     res.status(500).json({ error: 'Erreur lors de la validation du créneau' });
   }
 });
 
-// Confirmer une livraison (admin - si seuil atteint)
-app.put('/api/livraisons/:id/confirmer', requireAuth, requireRole('admin'), async (req, res) => {
+// Marquer comme livrée
+app.post('/api/livraisons/:id/marquer-livree', requireAuth, requireRole('admin', 'agriculteur'), async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Récupérer la livraison
-    const { data: livraison } = await supabaseAdmin
-      .from('livraisons')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (!livraison) {
-      return res.status(404).json({ error: 'Livraison non trouvée' });
-    }
-
-    // Vérifier que le seuil est atteint
-    if (livraison.total_actuel < livraison.seuil_prix) {
-      return res.status(400).json({ 
-        error: 'Le seuil de prix n\'est pas encore atteint',
-        total_actuel: livraison.total_actuel,
-        seuil_prix: livraison.seuil_prix
-      });
-    }
-
-    // Confirmer
     const { data, error } = await supabaseAdmin
       .from('livraisons')
-      .update({ statut: 'confirmee' })
+      .update({
+        statut: 'livree',
+        date_livraison_reelle: new Date().toISOString()
+      })
       .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
 
-    res.json({ message: 'Livraison confirmée', livraison: data });
-  } catch (error) {
-    console.error('Erreur confirmation livraison:', error);
-    res.status(500).json({ error: 'Erreur lors de la confirmation' });
-  }
-});
-
-// Marquer comme livrée (admin ou agriculteur)
-app.put('/api/livraisons/:id/livree', requireAuth, requireRole('admin', 'agriculteur'), async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const { data, error } = await supabaseAdmin
-      .from('livraisons')
-      .update({ statut: 'livree' })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    res.json({ message: 'Livraison marquée comme effectuée', livraison: data });
+    res.json({ message: 'Livraison marquée comme livrée', livraison: data });
   } catch (error) {
     console.error('Erreur marquage livraison:', error);
-    res.status(500).json({ error: 'Erreur lors du marquage' });
+    res.status(500).json({ error: 'Erreur lors du marquage de la livraison' });
   }
 });
 
@@ -670,41 +609,37 @@ app.put('/api/livraisons/:id/livree', requireAuth, requireRole('admin', 'agricul
 // ROUTES API - COMMANDES
 // ====================================
 
-// Créer une commande (étudiant uniquement)
+// Créer une commande
 app.post('/api/commandes', requireAuth, requireRole('etudiant'), async (req, res) => {
   try {
-    const { id_livraison, produits } = req.body; // produits = [{id_produit, quantite}, ...]
+    const { id_livraison, items } = req.body;
     const id_etudiant = req.session.userId;
 
     // Validation
-    if (!id_livraison || !produits || produits.length === 0) {
-      return res.status(400).json({ error: 'Données invalides' });
+    if (!id_livraison || !items || items.length === 0) {
+      return res.status(400).json({ error: 'Livraison et produits requis' });
     }
 
-    // Vérifier que la livraison existe et accepte encore les commandes
-    const { data: livraison } = await supabaseAdmin
+    // Vérifier que la livraison est disponible
+    const { data: livraison, error: livraisonError } = await supabaseAdmin
       .from('livraisons')
       .select('*')
       .eq('id', id_livraison)
       .single();
 
-    if (!livraison) {
+    if (livraisonError || !livraison) {
       return res.status(404).json({ error: 'Livraison non trouvée' });
     }
 
-    if (new Date() > new Date(livraison.date_limite_commande)) {
-      return res.status(400).json({ error: 'La date limite de commande est dépassée' });
+    if (livraison.statut === 'annulee') {
+      return res.status(400).json({ error: 'Cette livraison est annulée' });
     }
 
-    if (!['en_attente', 'creneau_valide', 'seuil_atteint'].includes(livraison.statut)) {
-      return res.status(400).json({ error: 'Cette livraison n\'accepte plus de commandes' });
-    }
-
-    // Calculer le montant total et récupérer les infos produits
+    // Calculer le montant total
     let montant_total = 0;
-    const lignes = [];
+    const produitsDetails = [];
 
-    for (const item of produits) {
+    for (const item of items) {
       const { data: produit } = await supabaseAdmin
         .from('produits')
         .select('*')
@@ -715,14 +650,14 @@ app.post('/api/commandes', requireAuth, requireRole('etudiant'), async (req, res
         return res.status(404).json({ error: `Produit ${item.id_produit} non trouvé` });
       }
 
-      const sous_total = produit.prix * item.quantite;
-      montant_total += sous_total;
+      const prix_ligne = parseFloat(produit.prix) * item.quantite;
+      montant_total += prix_ligne;
 
-      lignes.push({
-        id_produit: produit.id,
+      produitsDetails.push({
+        id_produit: item.id_produit,
         quantite: item.quantite,
         prix_unitaire: produit.prix,
-        sous_total
+        prix_total: prix_ligne
       });
     }
 
@@ -733,44 +668,28 @@ app.post('/api/commandes', requireAuth, requireRole('etudiant'), async (req, res
         id_etudiant,
         id_livraison,
         montant_total,
-        statut_paiement: 'en_attente'
+        statut_paiement: 'en_attente',
+        details: produitsDetails
       })
       .select()
       .single();
 
     if (commandeError) throw commandeError;
 
-    // Créer les lignes de commande
-    const lignesAvecIdCommande = lignes.map(ligne => ({
-      ...ligne,
-      id_commande: commande.id
-    }));
-
-    const { error: lignesError } = await supabaseAdmin
-      .from('lignes_commande')
-      .insert(lignesAvecIdCommande);
-
-    if (lignesError) throw lignesError;
-
-    // Mettre à jour le total de la livraison
+    // Mettre à jour le montant actuel de la livraison
     const { error: updateError } = await supabaseAdmin
       .from('livraisons')
       .update({
-        total_actuel: livraison.total_actuel + montant_total,
-        statut: (livraison.total_actuel + montant_total) >= livraison.seuil_prix 
-          ? 'seuil_atteint' 
-          : livraison.statut
+        montant_actuel: parseFloat(livraison.montant_actuel) + montant_total
       })
       .eq('id', id_livraison);
 
     if (updateError) throw updateError;
 
-    res.json({
-      message: 'Commande créée avec succès',
-      commande: {
-        ...commande,
-        lignes: lignesAvecIdCommande
-      }
+    res.json({ 
+      message: 'Commande créée', 
+      commande,
+      montant_total
     });
   } catch (error) {
     console.error('Erreur création commande:', error);
@@ -778,24 +697,20 @@ app.post('/api/commandes', requireAuth, requireRole('etudiant'), async (req, res
   }
 });
 
-// Liste des commandes de l'utilisateur connecté
-app.get('/api/mes-commandes', requireAuth, async (req, res) => {
+// Liste des commandes
+app.get('/api/commandes', requireAuth, async (req, res) => {
   try {
-    const userId = req.session.userId;
-    const role = req.session.role;
+    const { role, userId } = req.session;
 
     let query = supabaseAdmin
       .from('commandes')
       .select(`
         *,
+        etudiant:utilisateurs!commandes_id_etudiant_fkey(nom, prenom, email),
         livraison:livraisons(
           *,
-          campus(nom, ville),
-          agriculteur:utilisateurs!id_agriculteur(nom, prenom, nom_ferme)
-        ),
-        lignes_commande(
-          *,
-          produit:produits(nom, prix, unite, photo_url)
+          agriculteur:utilisateurs!livraisons_id_agriculteur_fkey(nom, prenom, nom_ferme),
+          campus(nom, ville)
         )
       `)
       .order('created_at', { ascending: false });
@@ -1030,6 +945,18 @@ app.post('/api/agriculteurs', requireAuth, requireRole('admin'), async (req, res
     console.error('Erreur création agriculteur:', error);
     res.status(500).json({ error: 'Erreur lors de la création de l\'agriculteur' });
   }
+});
+
+// ====================================
+// ROUTE DE DEBUG - À retirer en production
+// ====================================
+app.get('/debug/paths', (req, res) => {
+  res.json({
+    __dirname,
+    viewsPath: path.join(__dirname, 'views'),
+    publicPath: path.join(__dirname, 'public'),
+    cwd: process.cwd()
+  });
 });
 
 // ====================================
