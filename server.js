@@ -27,13 +27,13 @@ dotenv.config();
 // ====================================
 // CONFIGURATION EXPRESS
 // ====================================
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ✅ IMPORTANT : Faire confiance au proxy de Render pour les sessions HTTPS
+app.set('trust proxy', 1);
+
 // Middleware
-//app.use(express.json());
-//app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -41,15 +41,18 @@ app.use(express.json()); // ✅ for JSON bodies (fetch, API)
 app.use(express.urlencoded({ extended: true })); // ✅ for HTML forms
 
 
-// Configuration des sessions
+// Configuration des sessions - Adaptée pour Render
 app.use(session({
   secret: process.env.SESSION_SECRET || 'secret-par-defaut-a-changer',
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production', // HTTPS en production
-    maxAge: 24 * 60 * 60 * 1000 // 24 heures
-  }
+    httpOnly: true, // Protection XSS
+    maxAge: 24 * 60 * 60 * 1000, // 24 heures
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' // Important pour HTTPS
+  },
+  proxy: true // ✅ CRITIQUE pour Render !
 }));
 
 // Configuration Multer pour upload temporaire (avant Cloudinary)
